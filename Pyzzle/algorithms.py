@@ -8,6 +8,17 @@ class Algorithm:
     def get_algorithm_steps(self, tiles, variables, words):
         pass
 
+    def initalize(self, tiles, variables, words):
+        self.fields = [{
+            "pos": key,
+            "col": int(key[:-1]) % len(tiles[0]),
+            "row": int(key[:-1]) // len(tiles[0]),
+            "horizontal": key[-1] == "h",
+        } for key in variables]
+
+        return {key: [word for word in words if len(word) == variables[key]] for key in variables}
+
+
     def fits(self, field, word, matrix):
         row, col = field["row"], field["col"]
 
@@ -33,9 +44,8 @@ class Algorithm:
             else:
                 row += 1
 
-    def add_solution(self, field, ind):
-        solution = [field["pos"], ind, {field["pos"]: [
-            word for word in field["domain"]] for field in self.fields}]
+    def add_solution(self, field, ind, domain):
+        solution = [field["pos"], ind, domain]
 
         print(solution)
         self.solution.append(solution)
@@ -71,79 +81,66 @@ class ExampleAlgorithm(Algorithm):
 
 class Backtracking(Algorithm):
     def get_algorithm_steps(self, tiles, variables, words):
-        self.fields = [{
-            "pos": key,
-            "col": int(key[:-1]) % len(tiles[0]),
-            "row": int(key[:-1]) // len(tiles[0]),
-            "horizontal": key[-1] == "h",
-            "domain": [word for word in words if len(word) == variables[key]]
-        } for key in variables]
+        domain = self.initalize(tiles, variables, words)
 
-        self.backtrack(0, tiles)
+        self.backtrack(0, tiles, domain)
         return self.solution
 
-    def backtrack(self, pos, matrix):
+    def backtrack(self, pos, matrix, domain):
         if pos == len(self.fields):
             return True
 
         field = self.fields[pos]
 
-        for ind, word in enumerate(field["domain"]):
+        for ind, word in enumerate(domain[field["pos"]]):
+            if not self.fits(field, word, matrix):
+                continue
 
-            if self.fits(field, word, matrix):
-                new_matrix = deepcopy(matrix)
+            new_matrix = deepcopy(matrix)
 
-                self.fill(field, word, new_matrix)
-                self.add_solution(field, ind)
+            self.fill(field, word, new_matrix)
+            self.add_solution(field, ind, domain)
 
-                if self.backtrack(pos + 1, new_matrix):
-                    return True
+            if self.backtrack(pos + 1, new_matrix, domain):
+                return True
 
-        self.add_solution(field, None)
+        self.add_solution(field, None, domain)
         return False
 
 
 class ForwardChecking(Algorithm):
     def get_algorithm_steps(self, tiles, variables, words):
-        self.fields = [{
-            "pos": key,
-            "col": int(key[:-1]) % len(tiles[0]),
-            "row": int(key[:-1]) // len(tiles[0]),
-            "horizontal": key[-1] == "h",
-            "domain": [word for word in words if len(word) == variables[key]]
-        } for key in variables]
+        domain = self.initalize(tiles, variables, words)
 
-        self.backtrack(0, tiles)
+        self.backtrack(0, tiles, domain)
         return self.solution
 
-    def backtrack(self, pos, matrix):
+    def backtrack(self, pos, matrix, domain):
         if pos == len(self.fields):
             return True
 
         field = self.fields[pos]
 
-        for ind, word in enumerate(field["domain"]):
+        for ind, word in enumerate(domain[field["pos"]]):
             new_matrix = deepcopy(matrix)
-            fieldC = deepcopy(self.fields)
 
             self.fill(field, word, new_matrix)
-            self.add_solution(field, ind)
+            self.add_solution(field, ind, domain)
 
-            if self.check_domains() and self.backtrack(pos + 1, new_matrix):
+            new_domain = deepcopy(domain)
+
+            if self.check_domains(new_matrix, new_domain) and self.backtrack(pos + 1, new_matrix, new_domain):
                 return True
 
-            self.fields = fieldC
-
-        self.add_solution(field, None)
+        self.add_solution(field, None, domain)
 
         return False
 
-    def check_domains(self):
+    def check_domains(self, matrix, domain):
         for field in self.fields:
-            field["domain"] = [word for word in field["domain"]
-                               if self.fits(word, field)]
+            domain[field["pos"]] = [word for word in domain[field["pos"]] if self.fits(field, word, matrix)]
 
-            if len(field["domain"]) == 0:
+            if len(domain[field["pos"]]) == 0:
                 return False
 
         return True
@@ -151,53 +148,28 @@ class ForwardChecking(Algorithm):
 
 class ArcConsistency(ForwardChecking):
     def get_algorithm_steps(self, tiles, variables, words):
-        self.fields = [{
-            "pos": key,
-            "col": int(key[:-1]) % len(tiles[0]),
-            "row": int(key[:-1]) // len(tiles[0]),
-            "horizontal": key[-1] == "h",
-            "size": variables[key],
-            "domain": [word for word in words if len(word) == variables[key]]
-        } for key in variables]
+        domain = self.initalize(tiles, variables, words)
 
-        self.spots = tiles
-        self.words = words
-
-        for field in self.fields:
-            print(field)
-
-        print("SOLUTION")
-
-        self.backtrack(0)
+        self.backtrack(0, tiles, domain)
         return self.solution
 
-    def backtrack(self, pos):
+    def backtrack(self, pos, matrix, domain):
         if pos == len(self.fields):
             return True
 
         field = self.fields[pos]
-        ind = 0
-        for word in field["domain"]:
-            spots = deepcopy(self.spots)
-            fieldC = deepcopy(self.fields)
 
-            self.fits(word, field, True)
+        for ind, word in enumerate(domain[field["pos"]]):
+            new_matrix = deepcopy(matrix)
 
-            self.solution.append([field["pos"], ind, {field["pos"]: [
-                                 word for word in field["domain"]] for field in self.fields}])
-            print([field["pos"], ind, {field["pos"]: [
-                  word for word in field["domain"]] for field in self.fields}])
+            self.fill(field, word, new_matrix)
+            self.add_solution(field, ind, domain)
 
-            if self.check_domains() and self.backtrack(pos + 1):
+            new_domain = deepcopy(domain)
+
+            if self.check_domains(new_matrix, new_domain) and self.backtrack(pos + 1, new_matrix, new_domain):
                 return True
 
-            self.fields = fieldC
-            self.spots = spots
-            ind += 1
-
-        self.solution.append([field["pos"], None, {field["pos"]: [
-                             word for word in field["domain"]] for field in self.fields}])
-        print([field["pos"], None, {field["pos"]: [
-              word for word in field["domain"]] for field in self.fields}])
+        self.add_solution(field, None, domain)
 
         return False
