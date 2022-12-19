@@ -171,6 +171,8 @@ class Game:
                         del letters_pair[var]
                     letters_pair[var] = add_letters(var, value, letter_matrix)
                     self.moves.append([var, val_ind, domains, letters_pair[var], tried_values])
+                    if value in tried_values[var]:
+                        return False, f'Value \'{value}\' of variable \'{var}\' already tried.'
                     tried_values[var].append(value)
                 else:
                     added_move = False
@@ -189,7 +191,6 @@ class Game:
             return flag, f'Ok.' if flag else 'Backtrack was not executed properly.'
         except (Exception,):
             traceback.print_exc()
-            self.moves = []
             return False, 'An exception occurred.'
 
     def run(self):
@@ -202,48 +203,33 @@ class Game:
                 self.draw_initial_tile(i, j)
             self.draw_tiles_letters(old_letters, color)
 
-        def draw_move(move_ind, latest_flag, last_move_ind, apply_color, revert_color):
+        def draw_move(move_ind, latest_flag, apply_color, revert_color):
             if move_ind:
                 var, val_ind, domains, letters, _ = self.moves[move_ind]
 
                 value_flag = val_ind not in [None, -1]
                 direction_flag = self.direction == 1 and value_flag or self.direction == -1 and not value_flag
-                apply_flag = value_flag if latest_flag else direction_flag
+                all_letters = ''.join([elem[-1] for elem in sorted(letters[0] + letters[1])])
+                bc_flag = latest_flag and value_flag or not latest_flag and all_letters and direction_flag
+                word = all_letters if bc_flag else None
+                self.graphics_domains[var].set_tried_words(self.moves[self.step][-1][var])
+                self.graphics_domains[var].set_active_word(word)
+                self.graphics_domains[var].set_active_var(True if bc_flag else None if latest_flag else False)
 
+                apply_flag = value_flag if latest_flag else direction_flag
                 if apply_flag:
                     apply(letters[0] + letters[1], apply_color)
                 else:
                     revert(letters[0], letters[1], revert_color)
 
-                if move_ind == last_move_ind:
-                    all_letters = sorted(letters[0] + letters[1])
-                    word = ''.join([elem[-1] for elem in all_letters]) if direction_flag and all_letters else None
-                    self.graphics_domains[var].set_tried_words(self.moves[self.step][-1][var])
-                    self.graphics_domains[var].set_active_word(word)
-                    if word:
-                        self.graphics_domains[var].set_active_var(True)
-                    else:
-                        self.graphics_domains[var].set_active_var(False if value_flag or self.direction == -1 else None)
-
-                    for variable in self.variables:
-                        self.graphics_domains[variable].adjust_scroll(domains[variable])
-                        self.graphics_domains[variable].draw_domain()
-                else:
-                    if not value_flag:
-                        self.graphics_domains[var].set_active_var(None if direction_flag else False)
-                        self.graphics_domains[var].draw_domain()
-
         def make_step():
             self.step += self.direction
             before_latest_change, latest_change = self.step - self.direction, self.step
-            last_move_ind = max(before_latest_change, latest_change)
-            draw_move(before_latest_change, False, last_move_ind, config.BLACK, config.BLACK)
-            draw_move(latest_change, True, last_move_ind, config.GREEN, config.BLACK)
-
-            if self.step == 0:
-                for variable in self.variables:
-                    self.graphics_domains[variable].adjust_scroll(self.moves[self.step][2][variable])
-                    self.graphics_domains[variable].draw_domain()
+            draw_move(before_latest_change, False, config.BLACK, config.BLACK)
+            draw_move(latest_change, True, config.GREEN, config.BLACK)
+            for var in self.variables:
+                self.graphics_domains[var].adjust_scroll(self.moves[self.step][2][var])
+                self.graphics_domains[var].draw_domain()
 
         self.draw_initial()
         while self.running:
@@ -268,6 +254,7 @@ class Game:
                             raise elapsed
                         status = self.check_solution()
                         if not status[0]:
+                            self.moves = []
                             print(f'ERROR: Algorithm steps check failed! Reason - {status[1]}')
                             raise EndGame()
                         self.draw_info_text()
