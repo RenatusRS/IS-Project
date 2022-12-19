@@ -6,9 +6,6 @@ class Algorithm:
     solution = []
 
     def get_algorithm_steps(self, tiles, variables, words):
-        pass
-
-    def initalize(self, tiles, variables, words):
         self.fields = [{
             "pos": key,
             "col": int(key[:-1]) % len(tiles[0]),
@@ -16,8 +13,10 @@ class Algorithm:
             "horizontal": key[-1] == "h",
         } for key in variables]
 
-        return {key: [word for word in words if len(word) == variables[key]] for key in variables}
+        domain = {key: [word for word in words if len(word) == variables[key]] for key in variables}
 
+        self.backtrack(0, tiles, domain)
+        return self.solution
 
     def fits(self, field, word, matrix):
         row, col = field["row"], field["col"]
@@ -52,40 +51,17 @@ class Algorithm:
 
 
 class ExampleAlgorithm(Algorithm):
-
     def get_algorithm_steps(self, tiles, variables, words):
-        for tile in tiles:
-            print(tile)
-
-        print(variables)
-
-        for word in words:
-            print(word)
-
         moves_list = [['0h', 0], ['0v', 2], ['1v', 1], ['2h', 1], ['4h', None],
-                      ['2h', None], ['1v', None], [
-                          '0v', 3], ['1v', 1], ['2h', 1],
+                      ['2h', None], ['1v', None], ['0v', 3], ['1v', 1], ['2h', 1],
                       ['4h', 4], ['5v', 5]]
 
-        domains = {var: ["test"] for var in variables}
-        solution = []
+        domains = {var: variables[var] for var in variables}
 
-        for move in moves_list:
-            solution.append([move[0], move[1], domains])
-
-        for var in solution:
-            print(var)
-
-        return solution
+        return [[move[0], move[1], domains] for move in moves_list]
 
 
 class Backtracking(Algorithm):
-    def get_algorithm_steps(self, tiles, variables, words):
-        domain = self.initalize(tiles, variables, words)
-
-        self.backtrack(0, tiles, domain)
-        return self.solution
-
     def backtrack(self, pos, matrix, domain):
         if pos == len(self.fields):
             return True
@@ -109,12 +85,6 @@ class Backtracking(Algorithm):
 
 
 class ForwardChecking(Algorithm):
-    def get_algorithm_steps(self, tiles, variables, words):
-        domain = self.initalize(tiles, variables, words)
-
-        self.backtrack(0, tiles, domain)
-        return self.solution
-
     def backtrack(self, pos, matrix, domain):
         if pos == len(self.fields):
             return True
@@ -133,7 +103,6 @@ class ForwardChecking(Algorithm):
                 return True
 
         self.add_solution(field, None, domain)
-
         return False
 
     def check_domains(self, matrix, domain):
@@ -147,12 +116,6 @@ class ForwardChecking(Algorithm):
 
 
 class ArcConsistency(ForwardChecking):
-    def get_algorithm_steps(self, tiles, variables, words):
-        domain = self.initalize(tiles, variables, words)
-
-        self.backtrack(0, tiles, domain)
-        return self.solution
-
     def backtrack(self, pos, matrix, domain):
         if pos == len(self.fields):
             return True
@@ -171,5 +134,4 @@ class ArcConsistency(ForwardChecking):
                 return True
 
         self.add_solution(field, None, domain)
-
         return False
