@@ -11,7 +11,7 @@
 			"program": "${file}",
 			"console": "integratedTerminal",
 			"justMyCode": true,
-			"args": ["schemas\\schema0.txt", "words\\words0.txt", "Backtracking"]
+			"args": ["schemas\\schema0.txt", "words\\words0.txt", "ArcConsistency"]
 		}
 	]
 }
