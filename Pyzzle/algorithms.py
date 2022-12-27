@@ -17,11 +17,6 @@ class Algorithm:
         } for ind, key in enumerate(variables)]
 
         self.detect_constraints()
-        
-        for f in self.fields:
-            print(f["pos"], f["constraints"])
-        
-        self.fields_dict = {field["pos"]: field for field in self.fields}
 
         domain = {key: [word for word in words if len(word) == variables[key]] for key in variables}
 
@@ -29,6 +24,8 @@ class Algorithm:
         return self.solution
 
     def detect_constraints(self):
+        fields_dict = {field["pos"]: field for field in self.fields}
+        
         for field in self.fields:
             current_constraints = list()
 
@@ -39,19 +36,18 @@ class Algorithm:
                 if field["horizontal"]:
                     if other_field["row"] <= field["row"] <= other_field["row"] + other_field["size"] - 1 and field["col"] <= other_field["col"] <= field["col"] + field["size"] - 1:
                         current_constraints.append({
-                            "field": other_field["pos"],
+                            "field": fields_dict[other_field["pos"]],
                             "my_offset": abs(other_field["col"] - field["col"]),
                             "his_offset": abs(other_field["row"] - field["row"])
                         })
                 else:
                     if other_field["col"] <= field["col"] <= other_field["col"] + other_field["size"] - 1 and field["row"] <= other_field["row"] <= field["row"] + field["size"] - 1:
                         current_constraints.append({
-                            "field": other_field["pos"],
+                            "field": fields_dict[other_field["pos"]],
                             "his_offset": abs(other_field["col"] - field["col"]),
                             "my_offset": abs(other_field["row"] - field["row"])
                         })
-                        
-                        
+                                   
             field["constraints"] = current_constraints
 
     def add_solution(self, field, ind, domain):
@@ -126,10 +122,14 @@ class ForwardChecking(Algorithm):
     
     def forward_check(self, field, domain, my_word):
         for constraint in field["constraints"]:
-            other_field = self.fields_dict[constraint["field"]]
+            other_field = constraint["field"]
+            
+            if other_field["ind"] < field["ind"]:
+                continue
+            
             my_offset, his_offset = constraint["my_offset"], constraint["his_offset"]
 
-            domain[other_field["pos"]] = [word for word in domain[other_field["pos"]] if field["ind"] > other_field["ind"] or word[his_offset] == my_word[my_offset]]
+            domain[other_field["pos"]] = [his_word for his_word in domain[other_field["pos"]] if his_word[his_offset] == my_word[my_offset]]
 
             if not domain[other_field["pos"]]:
                 return False
@@ -153,7 +153,7 @@ class ArcConsistency(ForwardChecking):
                 curr_len = len(domain[field["pos"]])
                 
                 for constraint in field["constraints"]:
-                    other_field = self.fields_dict[constraint["field"]]
+                    other_field = constraint["field"]
                     
                     if other_field["ind"] < passed:
                         continue
