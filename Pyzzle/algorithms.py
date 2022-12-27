@@ -4,7 +4,7 @@ from copy import deepcopy
 class Algorithm:
     fields = []
     solution = []
-    fieldsDict = {}
+    fields_dict = {}
 
     def get_algorithm_steps(self, tiles, variables, words):
         self.fields = [{
@@ -16,19 +16,19 @@ class Algorithm:
             "ind": ind
         } for ind, key in enumerate(variables)]
 
-        self.set_overlap()
+        self.detect_constraints()
         
         for f in self.fields:
             print(f["pos"], f["constraints"])
         
-        self.fieldsDict = {field["pos"]: field for field in self.fields}
+        self.fields_dict = {field["pos"]: field for field in self.fields}
 
         domain = {key: [word for word in words if len(word) == variables[key]] for key in variables}
 
         self.backtrack(0, tiles, domain)
         return self.solution
 
-    def set_overlap(self):
+    def detect_constraints(self):
         for field in self.fields:
             current_constraints = list()
 
@@ -54,7 +54,33 @@ class Algorithm:
                         
             field["constraints"] = current_constraints
 
+    def add_solution(self, field, ind, domain):
+        solution = [field["pos"], ind, domain]
 
+        self.solution.append(solution)
+
+
+class Backtracking(Algorithm):
+    def backtrack(self, pos, matrix, domain):
+        if pos == len(self.fields):
+            return True
+
+        field = self.fields[pos]
+        for ind, word in enumerate(domain[field["pos"]]):
+            if not self.fits(field, word, matrix):
+                continue
+
+            self.add_solution(field, ind, domain)
+
+            new_matrix = deepcopy(matrix)
+            self.fill(field, word, new_matrix)
+
+            if self.backtrack(pos + 1, new_matrix, domain):
+                return True
+
+        self.add_solution(field, None, domain)
+        return False
+        
     def fits(self, field, word, matrix):
         row, col = field["row"], field["col"]
 
@@ -80,52 +106,39 @@ class Algorithm:
             else:
                 row += 1
 
-    def add_solution(self, field, ind, domain):
-        solution = [field["pos"], ind, domain]
 
-        self.solution.append(solution)
-
-
-class Backtracking(Algorithm):
+class ForwardChecking(Algorithm):
     def backtrack(self, pos, matrix, domain):
         if pos == len(self.fields):
             return True
 
         field = self.fields[pos]
-
         for ind, word in enumerate(domain[field["pos"]]):
-            if not self.fits(field, word, matrix):  # Backtracking
-                continue
-
-            new_matrix = deepcopy(matrix)
-
-            self.fill(field, word, new_matrix)
             self.add_solution(field, ind, domain)
-            
-            new_domain = deepcopy(domain) # Else
+  
+            new_domain = deepcopy(domain)
 
-            if self.reduce_domains(new_matrix, new_domain, ind) and self.backtrack(pos + 1, new_matrix, new_domain):
+            if self.reduce_domains(field, new_domain, ind, word) and self.backtrack(pos + 1, None, new_domain):
                 return True
 
         self.add_solution(field, None, domain)
         return False
-        
-    def reduce_domains(self, matrix, domain, passed):
-        return True
+    
+    def forward_check(self, field, domain, my_word):
+        for constraint in field["constraints"]:
+            other_field = self.fields_dict[constraint["field"]]
+            my_offset = constraint["my_offset"]
+            his_offset = constraint["his_offset"]
 
+            domain[other_field["pos"]] = [word for word in domain[other_field["pos"]] if field["ind"] > other_field["ind"] or word[his_offset] == my_word[my_offset]]
 
-class ForwardChecking(Backtracking):
-    def forward_check(self, matrix, domain):
-        for field in self.fields:
-            domain[field["pos"]] = [word for word in domain[field["pos"]] if self.fits(field, word, matrix)]
-
-            if len(domain[field["pos"]]) == 0:
+            if len(domain[other_field["pos"]]) == 0:
                 return False
 
         return True
         
-    def reduce_domains(self, matrix, domain, passed):
-        return self.forward_check(matrix, domain)
+    def reduce_domains(self, field, domain, passed, word):
+        return self.forward_check(field, domain, word)
 
 
 class ArcConsistency(ForwardChecking):
@@ -139,7 +152,7 @@ class ArcConsistency(ForwardChecking):
                     continue
                 
                 for constraint in field["constraints"]:
-                    other_field = self.fieldsDict[constraint["field"]]
+                    other_field = self.fields_dict[constraint["field"]]
                     
                     if other_field["ind"] <= passed:
                         continue
@@ -159,6 +172,6 @@ class ArcConsistency(ForwardChecking):
         return True
                     
                         
-    def reduce_domains(self, matrix, domain, passed):
-        return self.forward_check(matrix, domain) and self.arc_consistency(domain, passed)
+    def reduce_domains(self, field, domain, passed, word):
+        return self.forward_check(field, domain, word) and self.arc_consistency(domain, passed)
             
