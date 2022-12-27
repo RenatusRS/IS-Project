@@ -25,7 +25,7 @@ class Algorithm:
 
         domain = {key: [word for word in words if len(word) == variables[key]] for key in variables}
 
-        self.backtrack(0, tiles, domain)
+        self.backtrack(0, domain, tiles)
         return self.solution
 
     def detect_constraints(self):
@@ -61,7 +61,7 @@ class Algorithm:
 
 
 class Backtracking(Algorithm):
-    def backtrack(self, pos, matrix, domain):
+    def backtrack(self, pos, domain, matrix = None):
         if pos == len(self.fields):
             return True
 
@@ -75,7 +75,7 @@ class Backtracking(Algorithm):
             new_matrix = deepcopy(matrix)
             self.fill(field, word, new_matrix)
 
-            if self.backtrack(pos + 1, new_matrix, domain):
+            if self.backtrack(pos + 1, domain, new_matrix):
                 return True
 
         self.add_solution(field, None, domain)
@@ -108,7 +108,7 @@ class Backtracking(Algorithm):
 
 
 class ForwardChecking(Algorithm):
-    def backtrack(self, pos, matrix, domain):
+    def backtrack(self, pos, domain, matrix = None):
         if pos == len(self.fields):
             return True
 
@@ -118,7 +118,7 @@ class ForwardChecking(Algorithm):
   
             new_domain = deepcopy(domain)
 
-            if self.reduce_domains(field, new_domain, ind, word) and self.backtrack(pos + 1, None, new_domain):
+            if self.reduce_domains(field, new_domain, ind, word) and self.backtrack(pos + 1, new_domain):
                 return True
 
         self.add_solution(field, None, domain)
@@ -127,12 +127,11 @@ class ForwardChecking(Algorithm):
     def forward_check(self, field, domain, my_word):
         for constraint in field["constraints"]:
             other_field = self.fields_dict[constraint["field"]]
-            my_offset = constraint["my_offset"]
-            his_offset = constraint["his_offset"]
+            my_offset, his_offset = constraint["my_offset"], constraint["his_offset"]
 
             domain[other_field["pos"]] = [word for word in domain[other_field["pos"]] if field["ind"] > other_field["ind"] or word[his_offset] == my_word[my_offset]]
 
-            if len(domain[other_field["pos"]]) == 0:
+            if not domain[other_field["pos"]]:
                 return False
 
         return True
@@ -151,23 +150,23 @@ class ArcConsistency(ForwardChecking):
                 if ind <= passed:
                     continue
                 
+                curr_len = len(domain[field["pos"]])
+                
                 for constraint in field["constraints"]:
                     other_field = self.fields_dict[constraint["field"]]
                     
-                    if other_field["ind"] <= passed:
+                    if other_field["ind"] < passed:
                         continue
                     
-                    my_offset = constraint["my_offset"]
-                    his_offset = constraint["his_offset"]
+                    my_offset, his_offset = constraint["my_offset"], constraint["his_offset"]
                     
-                    curr_len = len(domain[field["pos"]])
                     domain[field["pos"]] = [word for word in domain[field["pos"]] if any([word[my_offset] == other_word[his_offset] for other_word in domain[other_field["pos"]]])]
                     
-                    if len(domain[field["pos"]]) == 0:
+                    if not domain[field["pos"]]:
                         return False
-                        
-                    if len(domain[field["pos"]]) != curr_len:
-                        changed = True
+                
+                if len(domain[field["pos"]]) != curr_len:
+                    changed = True
         
         return True
                     
