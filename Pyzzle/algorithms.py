@@ -153,7 +153,6 @@ class ArcConsistency(ForwardChecking):
                     other_field = constraint["field"]
                     
                     if other_field["ind"] < passed:
-                        print(other_field["ind"], passed)
                         continue
                     
                     my_offset, his_offset = constraint["my_offset"], constraint["his_offset"]
