@@ -24,8 +24,6 @@ class Algorithm:
         return self.solution
 
     def detect_constraints(self):
-        fields_dict = {field["pos"]: field for field in self.fields}
-        
         for field in self.fields:
             current_constraints = list()
 
@@ -33,20 +31,19 @@ class Algorithm:
                 if field["horizontal"] == other_field["horizontal"]:
                     continue
                 
+                constraint = {
+                    "field": other_field,
+                }
+                
                 if field["horizontal"]:
                     if other_field["row"] <= field["row"] <= other_field["row"] + other_field["size"] - 1 and field["col"] <= other_field["col"] <= field["col"] + field["size"] - 1:
-                        current_constraints.append({
-                            "field": fields_dict[other_field["pos"]],
-                            "my_offset": abs(other_field["col"] - field["col"]),
-                            "his_offset": abs(other_field["row"] - field["row"])
-                        })
+                        constraint["my_offset"], constraint["his_offset"] = abs(other_field["col"] - field["col"]), abs(other_field["row"] - field["row"]), 
                 else:
                     if other_field["col"] <= field["col"] <= other_field["col"] + other_field["size"] - 1 and field["row"] <= other_field["row"] <= field["row"] + field["size"] - 1:
-                        current_constraints.append({
-                            "field": fields_dict[other_field["pos"]],
-                            "his_offset": abs(other_field["col"] - field["col"]),
-                            "my_offset": abs(other_field["row"] - field["row"])
-                        })
+                        constraint["his_offset"], constraint["my_offset"] = abs(other_field["col"] - field["col"]), abs(other_field["row"] - field["row"]), 
+                
+                if "my_offset" in constraint:
+                    current_constraints.append(constraint)
                                    
             field["constraints"] = current_constraints
 
