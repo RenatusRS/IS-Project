@@ -111,7 +111,7 @@ class ForwardChecking(Algorithm):
   
             new_domain = deepcopy(domain)
 
-            if self.reduce_domains(field, new_domain, ind, word) and self.backtrack(pos + 1, new_domain):
+            if self.reduce_domains(field, new_domain, pos, word) and self.backtrack(pos + 1, new_domain):
                 return True
 
         self.add_solution(field, None, domain)
@@ -153,6 +153,7 @@ class ArcConsistency(ForwardChecking):
                     other_field = constraint["field"]
                     
                     if other_field["ind"] < passed:
+                        print(other_field["ind"], passed)
                         continue
                     
                     my_offset, his_offset = constraint["my_offset"], constraint["his_offset"]
